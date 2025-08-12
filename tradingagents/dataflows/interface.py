@@ -29,7 +29,13 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️ AKShare港股工具不可用: {e}")
     AKSHARE_HK_AVAILABLE = False
-
+# 导入binance工具
+try:
+    from .cypo_stock_utils import get_crypto_info, get_crypto_data
+    BINANCE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"⚠️ Binance工具不可用: {e}")
+    BINANCE_AVAILABLE = False
 # 尝试导入yfinance相关模块，如果失败则跳过
 try:
     from .yfin_utils import *
@@ -1387,6 +1393,69 @@ def get_current_china_data_source() -> str:
     except Exception as e:
         logger.error(f"❌ 获取数据源信息失败: {e}")
         return f"❌ 获取数据源信息失败: {e}"
+
+# ==================== binance数据接口 ====================
+
+def get_cypo_stock_data_unified(symbol: str, start_date: str = None, end_date: str = None) -> str:
+    """
+    获取binance数据的统一接口
+
+    Args:
+        symbol: 交易对 (如: btcusdt)
+        start_date: 开始日期 (YYYY-MM-DD)
+        end_date: 结束日期 (YYYY-MM-DD)
+
+    Returns:
+        str: 格式化的cypo数据
+    """
+    try:
+        logger.info(f"🇭获取cypo数据: {symbol}")
+
+        # 优先使用AKShare港股数据（国内数据源，港股支持更好，更稳定）
+        if BINANCE_AVAILABLE:
+            try:
+                logger.info(f"🔄 优先使用binance api获取cypo数据: {symbol}")
+                result = get_crypto_data(symbol, start_date, end_date)
+                if result and "❌" not in result:
+                    logger.info(f"✅ binance数据获取成功: {symbol}")
+                    return result
+                else:
+                    logger.error(f"⚠️ binance返回错误结果，尝试备用方案")
+            except Exception as e:
+                logger.error(f"⚠️ binance数据获取失败: {e}")
+
+        # 备用方案1：使用Yahoo Finance港股工具
+        # if HK_STOCK_AVAILABLE:
+        #     try:
+        #         logger.info(f"🔄 使用Yahoo Finance备用方案获取港股数据: {symbol}")
+        #         result = get_hk_stock_data(symbol, start_date, end_date)
+        #         if result and "❌" not in result:
+        #             logger.info(f"✅ Yahoo Finance港股数据获取成功: {symbol}")
+        #             return result
+        #         else:
+        #             logger.error(f"⚠️ Yahoo Finance返回错误结果")
+        #     except Exception as e:
+        #         logger.error(f"⚠️ Yahoo Finance港股数据获取失败: {e}")
+
+        # 备用方案2：使用FINNHUB（付费用户可用）
+        # try:
+        #     from .optimized_us_data import get_us_stock_data_cached
+        #     logger.info(f"🔄 使用FINNHUB获取港股数据: {symbol}")
+        #     result = get_us_stock_data_cached(symbol, start_date, end_date)
+        #     if result and "❌" not in result:
+        #         return result
+        # except Exception as e:
+        #     logger.error(f"⚠️ FINNHUB港股数据获取失败: {e}")
+
+        # 所有数据源都失败
+        error_msg = f"❌ 无法获取cypo {symbol}数据 - 所有数据源都不可用"
+        print(error_msg)
+        return error_msg
+
+    except Exception as e:
+        logger.error(f"❌ 获取cypo数据失败: {e}")
+        return f"❌ 获取cypo {symbol}数据失败: {e}"
+
 
 
 # ==================== 港股数据接口 ====================

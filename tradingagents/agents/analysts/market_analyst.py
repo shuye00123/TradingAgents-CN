@@ -68,7 +68,9 @@ def _get_company_name(ticker: str, market_info: dict) -> str:
             company_name = us_stock_names.get(ticker.upper(), f"美股{ticker}")
             logger.debug(f"📊 [DEBUG] 美股名称映射: {ticker} -> {company_name}")
             return company_name
-
+        elif market_info['is_cypo']:
+            # 加密
+            return f"加密{ticker}"
         else:
             return f"股票{ticker}"
 
@@ -93,9 +95,14 @@ def create_market_analyst_react(llm, toolkit):
             import re
             return re.match(r'^\d{6}$', str(ticker_code))
 
+        # 检查是否为cypo
+        def is_cypo_stock(ticker_code):
+                import re
+                return re.match(r'usdt+$', str(ticker_code))
+
         is_china = is_china_stock(ticker)
         logger.debug(f"📈 [DEBUG] 股票类型检查: {ticker} -> 中国A股: {is_china}")
-
+        is_cypo = is_cypo_stock(ticker)
         if toolkit.config["online_tools"]:
             # 在线模式，使用ReAct Agent
             if is_china:
@@ -152,6 +159,79 @@ def create_market_analyst_react(llm, toolkit):
 ## 成交量分析
 ## 市场情绪分析
 ## 投资建议"""
+            elif is_cypo:
+
+                logger.info(f"📈 [市场分析师] 使用ReAct Agent分析cypo")
+
+                # 创建cypo数据工具
+                from langchain_core.tools import BaseTool
+
+                class CypoStockDataTool(BaseTool):
+                    name: str = "get_cypo_stock_data"
+                    description: str = f"获取cypo {ticker}的市场数据和技术指标（优化缓存版本）。直接调用，无需参数。"
+
+                    def _run(self, query: str = "") -> str:
+                        try:
+                            logger.debug(f"📈 [DEBUG] CypoStockDataTool调用，股票代码: {ticker}")
+                            # 使用优化的缓存数据获取
+                            from tradingagents.dataflows.optimized_us_data import get_cypo_stock_data_cached
+                            return get_cypo_stock_data_cached(
+                                symbol=ticker,
+                                start_date='2025-05-28',
+                                end_date=current_date,
+                                force_refresh=False
+                            )
+                        except Exception as e:
+                            logger.error(f"❌ 优化cypo数据获取失败: {e}")
+                            # 备用方案：使用原始API
+                            try:
+                                return toolkit.get_bn_data_online.invoke({
+                                    'symbol': ticker,
+                                    'start_date': '2025-05-28',
+                                    'end_date': current_date
+                                })
+                            except Exception as e2:
+                                return f"获取cypo数据失败: {str(e2)}"
+
+                class FinnhubNewsTool(BaseTool):
+                    name: str = "get_finnhub_news"
+                    description: str = f"获取美股{ticker}的最新新闻和市场情绪（通过FINNHUB API）。直接调用，无需参数。"
+
+                    def _run(self, query: str = "") -> str:
+                        try:
+                            logger.debug(f"📈 [DEBUG] FinnhubNewsTool调用，股票代码: {ticker}")
+                            return toolkit.get_finnhub_news.invoke({
+                                'ticker': ticker,
+                                'start_date': '2025-05-28',
+                                'end_date': current_date
+                            })
+                        except Exception as e:
+                            return f"获取新闻数据失败: {str(e)}"
+
+                tools = [CypoStockDataTool(), FinnhubNewsTool()]
+                query = f"""请对cypo {ticker}进行详细的技术分析。
+
+                执行步骤：
+                1. 使用get_cypo_stock_data工具获取cypo市场数据和技术指标（通过binance API）
+                2. 使用get_finnhub_news工具获取最新新闻和市场情绪
+                3. 基于获取的真实数据进行深入的技术指标分析
+                4. 直接输出完整的技术分析报告内容
+
+                重要要求：
+                - 必须输出完整的技术分析报告内容，不要只是描述报告已完成
+                - 报告必须基于工具获取的真实数据进行分析
+                - 报告长度不少于800字
+                - 包含具体的数据、指标数值和专业分析
+                - 结合新闻信息分析市场情绪
+
+                报告格式应包含：
+                ## 股票基本信息
+                ## 技术指标分析
+                ## 价格趋势分析
+                ## 成交量分析
+                ## 新闻和市场情绪分析
+                ## 投资建议"""
+
             else:
                 logger.info(f"📈 [市场分析师] 使用ReAct Agent分析美股/港股")
 
@@ -203,26 +283,26 @@ def create_market_analyst_react(llm, toolkit):
                 tools = [USStockDataTool(), FinnhubNewsTool()]
                 query = f"""请对美股{ticker}进行详细的技术分析。
 
-执行步骤：
-1. 使用get_us_stock_data工具获取股票市场数据和技术指标（通过FINNHUB API）
-2. 使用get_finnhub_news工具获取最新新闻和市场情绪
-3. 基于获取的真实数据进行深入的技术指标分析
-4. 直接输出完整的技术分析报告内容
+                                执行步骤：
+                                1. 使用get_us_stock_data工具获取股票市场数据和技术指标（通过FINNHUB API）
+                                2. 使用get_finnhub_news工具获取最新新闻和市场情绪
+                                3. 基于获取的真实数据进行深入的技术指标分析
+                                4. 直接输出完整的技术分析报告内容
 
-重要要求：
-- 必须输出完整的技术分析报告内容，不要只是描述报告已完成
-- 报告必须基于工具获取的真实数据进行分析
-- 报告长度不少于800字
-- 包含具体的数据、指标数值和专业分析
-- 结合新闻信息分析市场情绪
+                                重要要求：
+                                - 必须输出完整的技术分析报告内容，不要只是描述报告已完成
+                                - 报告必须基于工具获取的真实数据进行分析
+                                - 报告长度不少于800字
+                                - 包含具体的数据、指标数值和专业分析
+                                - 结合新闻信息分析市场情绪
 
-报告格式应包含：
-## 股票基本信息
-## 技术指标分析
-## 价格趋势分析
-## 成交量分析
-## 新闻和市场情绪分析
-## 投资建议"""
+                                报告格式应包含：
+                                ## 股票基本信息
+                                ## 技术指标分析
+                                ## 价格趋势分析
+                                ## 成交量分析
+                                ## 新闻和市场情绪分析
+                                ## 投资建议"""
 
             try:
                 # 创建ReAct Agent
@@ -319,7 +399,7 @@ def create_market_analyst(llm, toolkit):
 不要说你将要调用工具，直接调用工具。
 
 **分析要求：**
-1. 调用工具后，基于获取的真实数据进行技术分析
+1. 调用工具后，基于获取的真实数据进行技术分析，你不需要判断当前时间和数据时间的差异，能获取到市场数据，就按照市场数据来分析
 2. 分析移动平均线、MACD、RSI、布林带等技术指标
 3. 考虑{market_info['market_name']}市场特点进行分析
 4. 提供具体的数值和专业分析

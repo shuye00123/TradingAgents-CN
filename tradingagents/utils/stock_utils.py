@@ -50,7 +50,9 @@ class StockUtils:
         # 美股：1-5位字母
         if re.match(r'^[A-Z]{1,5}$', ticker):
             return StockMarket.US
-            
+        # cypo: usdt结尾
+        if re.match(r'usdt+$', ticker):
+            return StockMarket.CYPO
         return StockMarket.UNKNOWN
     
     @staticmethod
@@ -111,6 +113,8 @@ class StockUtils:
             return "港币", "HK$"
         elif market == StockMarket.US:
             return "美元", "$"
+        elif market == StockMarket.CYPO:
+            return "美元", "$"
         else:
             return "未知", "?"
     
@@ -133,6 +137,8 @@ class StockUtils:
             return "yahoo_finance"  # 港股使用Yahoo Finance
         elif market == StockMarket.US:
             return "yahoo_finance"  # 美股使用Yahoo Finance
+        elif market == StockMarket.CYPO:
+            return "binance"  # cypo使用binance
         else:
             return "unknown"
     
@@ -181,6 +187,7 @@ class StockUtils:
             StockMarket.CHINA_A: "中国A股",
             StockMarket.HONG_KONG: "港股",
             StockMarket.US: "美股",
+            StockMarket.CYPO: "加密货币",
             StockMarket.UNKNOWN: "未知市场"
         }
         
@@ -193,7 +200,8 @@ class StockUtils:
             "data_source": data_source,
             "is_china": market == StockMarket.CHINA_A,
             "is_hk": market == StockMarket.HONG_KONG,
-            "is_us": market == StockMarket.US
+            "is_us": market == StockMarket.US,
+            "is_cypo": market == StockMarket.US
         }
 
 

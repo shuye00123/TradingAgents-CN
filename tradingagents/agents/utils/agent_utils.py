@@ -909,6 +909,7 @@ class Toolkit:
             is_china = market_info['is_china']
             is_hk = market_info['is_hk']
             is_us = market_info['is_us']
+            is_cypo = market_info['is_cypo']
 
             logger.info(f"📈 [统一市场工具] 股票类型: {market_info['market_name']}")
             logger.info(f"📈 [统一市场工具] 货币: {market_info['currency_name']} ({market_info['currency_symbol']}")
@@ -936,7 +937,16 @@ class Toolkit:
                     result_data.append(f"## 港股市场数据\n{hk_data}")
                 except Exception as e:
                     result_data.append(f"## 港股市场数据\n获取失败: {e}")
+            elif is_cypo:
+                # cypo：使用binance数据源
+                logger.info(f" [统一市场工具] 处理binance市场数据...")
 
+                try:
+                    from tradingagents.dataflows.interface import get_cypo_stock_data_unified
+                    cypo_data = get_cypo_stock_data_unified(ticker, start_date, end_date)
+                    result_data.append(f"## binance市场数据\n{cypo_data}")
+                except Exception as e:
+                    result_data.append(f"## binance市场数据\n获取失败: {e}")
             else:
                 # 美股：使用Yahoo Finance数据源
                 logger.info(f"🇺🇸 [统一市场工具] 处理美股市场数据...")
