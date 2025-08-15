@@ -22,6 +22,7 @@ def create_trader(llm, memory):
         is_china = market_info['is_china']
         is_hk = market_info['is_hk']
         is_us = market_info['is_us']
+        is_cypo = market_info['is_cypo']
 
         # 根据股票类型确定货币单位
         currency = market_info['currency_name']
@@ -30,7 +31,7 @@ def create_trader(llm, memory):
         logger.debug(f"💰 [DEBUG] ===== 交易员节点开始 =====")
         logger.debug(f"💰 [DEBUG] 交易员检测股票类型: {company_name} -> {market_info['market_name']}, 货币: {currency}")
         logger.debug(f"💰 [DEBUG] 货币符号: {currency_symbol}")
-        logger.debug(f"💰 [DEBUG] 市场详情: 中国A股={is_china}, 港股={is_hk}, 美股={is_us}")
+        logger.debug(f"💰 [DEBUG] 市场详情: 中国A股={is_china}, 港股={is_hk}, 美股={is_us}, 加密={is_cypo}")
         logger.debug(f"💰 [DEBUG] 基本面报告长度: {len(fundamentals_report)}")
         logger.debug(f"💰 [DEBUG] 基本面报告前200字符: {fundamentals_report[:200]}...")
 

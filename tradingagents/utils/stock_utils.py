@@ -51,7 +51,7 @@ class StockUtils:
         if re.match(r'^[A-Z]{1,5}$', ticker):
             return StockMarket.US
         # cypo: usdt结尾
-        if re.match(r'usdt+$', ticker):
+        if re.match(r'.*USDT+$', ticker):
             return StockMarket.CYPO
         return StockMarket.UNKNOWN
     

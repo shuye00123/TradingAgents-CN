@@ -98,7 +98,7 @@ def create_market_analyst_react(llm, toolkit):
         # 检查是否为cypo
         def is_cypo_stock(ticker_code):
                 import re
-                return re.match(r'usdt+$', str(ticker_code))
+                return re.match(r'.*USDT+$', str(ticker_code))
 
         is_china = is_china_stock(ticker)
         logger.debug(f"📈 [DEBUG] 股票类型检查: {ticker} -> 中国A股: {is_china}")
@@ -174,12 +174,12 @@ def create_market_analyst_react(llm, toolkit):
                         try:
                             logger.debug(f"📈 [DEBUG] CypoStockDataTool调用，股票代码: {ticker}")
                             # 使用优化的缓存数据获取
-                            from tradingagents.dataflows.optimized_us_data import get_cypo_stock_data_cached
-                            return get_cypo_stock_data_cached(
+                            from tradingagents.dataflows.cypo_stock_utils import get_crypto_data
+                            return get_crypto_data(
                                 symbol=ticker,
+                                interval='1d',
                                 start_date='2025-05-28',
-                                end_date=current_date,
-                                force_refresh=False
+                                end_date=current_date
                             )
                         except Exception as e:
                             logger.error(f"❌ 优化cypo数据获取失败: {e}")
@@ -209,10 +209,10 @@ def create_market_analyst_react(llm, toolkit):
                             return f"获取新闻数据失败: {str(e)}"
 
                 tools = [CypoStockDataTool(), FinnhubNewsTool()]
-                query = f"""请对cypo {ticker}进行详细的技术分析。
+                query = f"""请对加密货币交易对 {ticker}进行详细的技术分析。
 
                 执行步骤：
-                1. 使用get_cypo_stock_data工具获取cypo市场数据和技术指标（通过binance API）
+                1. 使用get_cypo_stock_data工具获取加密市场数据和技术指标（通过binance API）
                 2. 使用get_finnhub_news工具获取最新新闻和市场情绪
                 3. 基于获取的真实数据进行深入的技术指标分析
                 4. 直接输出完整的技术分析报告内容
