@@ -17,6 +17,7 @@ class StockMarket(Enum):
     CHINA_A = "china_a"      # 中国A股
     HONG_KONG = "hong_kong"  # 港股
     US = "us"                # 美股
+    CYPO = "cypo"  # 美股
     UNKNOWN = "unknown"      # 未知
 
 
@@ -201,7 +202,7 @@ class StockUtils:
             "is_china": market == StockMarket.CHINA_A,
             "is_hk": market == StockMarket.HONG_KONG,
             "is_us": market == StockMarket.US,
-            "is_cypo": market == StockMarket.US
+            "is_cypo": market == StockMarket.CYPO
         }
 
 
