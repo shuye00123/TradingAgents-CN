@@ -139,13 +139,15 @@ class BinanceCryptoProvider:
 
         return None
 
-    def get_crypto_data(self, symbol: str, interval: str = '1d', start_date: str = None, end_date: str = None) -> Optional[pd.DataFrame]:
+    def get_crypto_data(self, symbol: str, interval: str = '1d', start_date: str = None, end_date: str = None) -> \
+    Optional[pd.DataFrame]:
         """
         获取加密货币历史数据 (简化接口)
+        改进版本：正确处理不同时间间隔的分批获取
 
         Args:
             symbol: 交易对
-            interval: K线间隔
+            interval: K线间隔 (1m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M)
             start_date: 开始日期 (YYYY-MM-DD)
             end_date: 结束日期 (YYYY-MM-DD)
 
@@ -161,25 +163,40 @@ class BinanceCryptoProvider:
             if not start_date:
                 start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
-            logger.info(f"💰 获取加密货币数据: {symbol} ({start_date} 到 {end_date})")
+            logger.info(f"💰 获取加密货币数据: {symbol} ({start_date} 到 {end_date}) 间隔: {interval}")
 
             # 转换日期为时间戳
             start_dt = datetime.strptime(start_date, '%Y-%m-%d')
             end_dt = datetime.strptime(end_date, '%Y-%m-%d')
 
-            start_time = int(start_dt.timestamp() * 1000)
-            end_time = int(end_dt.timestamp() * 1000)
+            # 计算每个K线间隔对应的毫秒数
+            interval_ms = self._get_interval_milliseconds(interval)
+            if interval_ms is None:
+                logger.error(f"❌ 不支持的K线间隔: {interval}")
+                return None
 
+            # 计算总时间范围和每批获取的时间范围
+            total_ms = int((end_dt - start_dt).total_seconds() * 1000)
+            batch_ms = 1000 * interval_ms * 1000  # 每批获取1000根K线的时间范围
+
+            # 如果总时间范围小于等于单批范围，一次性获取
+            if total_ms <= batch_ms:
+                return self._get_single_batch(symbol, interval, start_dt, end_dt)
+
+            # 分批次获取数据
             all_data = []
-            current_start = start_time
+            current_start = start_dt
 
-            # 分批次获取数据 (Binance单次最多1000条)
-            while current_start < end_time:
-                batch = self.get_klines(
+            while current_start < end_dt:
+                current_end = current_start + timedelta(milliseconds=batch_ms)
+                if current_end > end_dt:
+                    current_end = end_dt
+
+                batch = self._get_single_batch(
                     symbol=symbol,
                     interval=interval,
-                    start_time=current_start,
-                    end_time=end_time
+                    start_dt=current_start,
+                    end_dt=current_end
                 )
 
                 if batch is None or batch.empty:
@@ -187,9 +204,8 @@ class BinanceCryptoProvider:
 
                 all_data.append(batch)
 
-                # 更新下一次请求的开始时间
-                last_time = batch['close_time'].max()
-                current_start = int(last_time.timestamp() * 1000) + 1
+                # 更新下一次请求的开始时间 (当前批次的结束时间)
+                current_start = current_end
 
                 # 避免无限循环
                 if len(batch) < 1000:
@@ -212,6 +228,40 @@ class BinanceCryptoProvider:
         except Exception as e:
             logger.error(f"❌ 获取加密货币数据失败: {e}")
             return None
+
+    def _get_single_batch(self, symbol: str, interval: str, start_dt: datetime, end_dt: datetime) -> Optional[
+        pd.DataFrame]:
+        """获取单批次数据"""
+        start_time = int(start_dt.timestamp() * 1000)
+        end_time = int(end_dt.timestamp() * 1000)
+
+        return self.get_klines(
+            symbol=symbol,
+            interval=interval,
+            start_time=start_time,
+            end_time=end_time,
+            limit=1000
+        )
+
+    def _get_interval_milliseconds(self, interval: str) -> Optional[int]:
+        """将K线间隔转换为毫秒数"""
+        interval_map = {
+            '1m': 60 * 1000,
+            '5m': 5 * 60 * 1000,
+            '15m': 15 * 60 * 1000,
+            '30m': 30 * 60 * 1000,
+            '1h': 60 * 60 * 1000,
+            '2h': 2 * 60 * 60 * 1000,
+            '4h': 4 * 60 * 60 * 1000,
+            '6h': 6 * 60 * 60 * 1000,
+            '8h': 8 * 60 * 60 * 1000,
+            '12h': 12 * 60 * 60 * 1000,
+            '1d': 24 * 60 * 60 * 1000,
+            '3d': 3 * 24 * 60 * 60 * 1000,
+            '1w': 7 * 24 * 60 * 60 * 1000,
+            '1M': 30 * 24 * 60 * 60 * 1000  # 近似值
+        }
+        return interval_map.get(interval)
 
     def get_crypto_info(self, symbol: str) -> Dict[str, Any]:
         """

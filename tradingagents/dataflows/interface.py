@@ -1415,7 +1415,7 @@ def get_cypo_stock_data_unified(symbol: str, start_date: str = None, end_date: s
         if BINANCE_AVAILABLE:
             try:
                 logger.info(f"🔄 优先使用binance api获取cypo数据: {symbol}")
-                result = get_crypto_data(symbol, start_date, end_date)
+                result = get_crypto_data(symbol, '1d',start_date, end_date)
                 if result and "❌" not in result:
                     logger.info(f"✅ binance数据获取成功: {symbol}")
                     return result
